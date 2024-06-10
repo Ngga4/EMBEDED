@@ -1,0 +1,603 @@
+// ============================================================
+//   CATATAN EMBEDDED SISTEM - ARDUINO / ESP32 / ESP8266
+//   Referensi perintah Sensor & Aktuator
+// ============================================================
+
+// ============================================================
+// SECTION 1: LIBRARY YANG DIBUTUHKAN
+// ============================================================
+
+// --- Aktuator ---
+// Buzzer          : built-in (tone/noTone), tidak perlu library
+// Servo           : #include <Servo.h>
+// LCD 16x2 (I2C) : #include <LiquidCrystal_I2C.h>
+// LCD 16x2 (biasa): #include <LiquidCrystal.h>
+// Relay           : built-in (digitalWrite), tidak perlu library
+// LED/Lampu       : built-in (digitalWrite), tidak perlu library
+// Motor DC (L298N): built-in (digitalWrite + analogWrite), tidak perlu library
+
+// --- Sensor ---
+// DHT11/DHT22     : #include <DHT.h>            // Library: DHT sensor library by Adafruit
+// Ultrasonic HC-SR04 : built-in (pulseIn), tidak perlu library
+// PIR             : built-in (digitalRead), tidak perlu library
+// LDR (Cahaya)    : built-in (analogRead), tidak perlu library
+// MQ-2 (Gas/Asap): built-in (analogRead), tidak perlu library
+// Soil Moisture   : built-in (analogRead), tidak perlu library
+// DS18B20 (Suhu air) : #include <OneWire.h>     // Library: OneWire by Paul Stoffregen
+//                    : #include <DallasTemperature.h> // Library: DallasTemperature by Miles Burton
+// MPU6050 (Gyro/Accel): #include <Wire.h>
+//                     : #include <MPU6050.h>    // Library: MPU6050 by Electronic Cats
+// BMP180/BMP280 (Tekanan udara): #include <Wire.h>
+//                               : #include <Adafruit_BMP280.h> // Library: Adafruit BMP280
+// RFID RC522      : #include <SPI.h>
+//                 : #include <MFRC522.h>         // Library: MFRC522 by Miguel Balboa
+// Keypad 4x4      : #include <Keypad.h>          // Library: Keypad by Mark Stanley
+
+
+// ============================================================
+// SECTION 2: AKTUATOR
+// ============================================================
+
+// ------------------------------------------------------------
+// 2.1 LED / LAMPU / RELAY
+// Perintah umum: pinMode + digitalWrite
+// Relay: ACTIVE LOW (LOW = ON, HIGH = OFF) pada beberapa modul
+// ------------------------------------------------------------
+
+#define PIN_LED    13
+#define PIN_RELAY  12
+
+void setup_led_relay() {
+    pinMode(PIN_LED, OUTPUT);
+    pinMode(PIN_RELAY, OUTPUT);
+
+    digitalWrite(PIN_LED, HIGH);   // LED nyala
+    digitalWrite(PIN_LED, LOW);    // LED mati
+
+    digitalWrite(PIN_RELAY, LOW);  // Relay ON  (active low)
+    digitalWrite(PIN_RELAY, HIGH); // Relay OFF (active low)
+}
+
+
+// ------------------------------------------------------------
+// 2.2 BUZZER
+// Perintah khusus: tone() dan noTone()
+// tone(pin, frekuensi)           -> bunyi terus menerus
+// tone(pin, frekuensi, durasi_ms)-> bunyi selama X milidetik
+// noTone(pin)                    -> matikan bunyi
+// Frekuensi umum: 262=Do, 294=Re, 330=Mi, 349=Fa, 392=Sol
+// ------------------------------------------------------------
+
+#define PIN_BUZZER 8
+
+void contoh_buzzer() {
+    tone(PIN_BUZZER, 1000);        // Bunyi 1000 Hz terus menerus
+    delay(500);
+    noTone(PIN_BUZZER);            // Matikan buzzer
+    delay(200);
+
+    tone(PIN_BUZZER, 2000, 300);   // Bunyi 2000 Hz selama 300ms (otomatis berhenti)
+    delay(500);
+
+    // Memainkan nada Do-Re-Mi
+    tone(PIN_BUZZER, 262, 400); delay(450); // Do
+    tone(PIN_BUZZER, 294, 400); delay(450); // Re
+    tone(PIN_BUZZER, 330, 400); delay(450); // Mi
+    noTone(PIN_BUZZER);
+}
+
+
+// ------------------------------------------------------------
+// 2.3 SERVO MOTOR
+// Library: Servo.h (built-in Arduino)
+// Sudut: 0 - 180 derajat
+// ------------------------------------------------------------
+
+#include <Servo.h>
+Servo myServo;
+
+#define PIN_SERVO 9
+
+void setup_servo() {
+    myServo.attach(PIN_SERVO);    // Inisialisasi servo di pin 9
+
+    myServo.write(0);             // Putar ke 0 derajat
+    delay(500);
+    myServo.write(90);            // Putar ke 90 derajat (tengah)
+    delay(500);
+    myServo.write(180);           // Putar ke 180 derajat
+    delay(500);
+
+    int posisi = myServo.read();  // Baca posisi sudut sekarang
+}
+
+
+// ------------------------------------------------------------
+// 2.4 MOTOR DC dengan L298N
+// ENA/ENB -> PWM (kecepatan 0-255)
+// IN1,IN2 -> arah putaran
+// ------------------------------------------------------------
+
+#define ENA  6   // PWM kecepatan
+#define IN1  7
+#define IN2  8
+
+void setup_motor_dc() {
+    pinMode(ENA, OUTPUT);
+    pinMode(IN1, OUTPUT);
+    pinMode(IN2, OUTPUT);
+
+    // Maju
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, 200);        // Kecepatan 200/255
+
+    delay(2000);
+
+    // Mundur
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+    analogWrite(ENA, 150);
+
+    delay(2000);
+
+    // Berhenti
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, 0);
+}
+
+
+// ------------------------------------------------------------
+// 2.5 LCD 16x2 (I2C)
+// Library: LiquidCrystal_I2C
+// Alamat I2C biasanya 0x27 atau 0x3F
+// ------------------------------------------------------------
+
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2); // alamat, kolom, baris
+
+void setup_lcd() {
+    lcd.init();                    // Inisialisasi LCD
+    lcd.backlight();               // Nyalakan backlight
+
+    lcd.setCursor(0, 0);           // Kolom 0, Baris 0 (atas)
+    lcd.print("Hello World!");
+
+    lcd.setCursor(0, 1);           // Kolom 0, Baris 1 (bawah)
+    lcd.print("Suhu: 32 C");
+
+    lcd.clear();                   // Bersihkan layar
+    lcd.noBacklight();             // Matikan backlight
+}
+
+
+// ============================================================
+// SECTION 3: SENSOR
+// ============================================================
+
+// ------------------------------------------------------------
+// 3.1 PIR SENSOR (Gerak)
+// Perintah umum: digitalRead
+// Output: HIGH = ada gerakan, LOW = tidak ada
+// >> KONEKSI PIN: DIGITAL (hanya keluarkan HIGH/LOW)
+//    OUT  -> Pin Digital (contoh: D2)
+//    VCC  -> 5V
+//    GND  -> GND
+// ------------------------------------------------------------
+
+#define PIN_PIR 2  // Hubungkan ke pin DIGITAL
+
+void setup_pir() {
+    pinMode(PIN_PIR, INPUT);
+}
+
+void baca_pir() {
+    int status = digitalRead(PIN_PIR);
+    if (status == HIGH) {
+        Serial.println("Gerakan terdeteksi!");
+    } else {
+        Serial.println("Tidak ada gerakan.");
+    }
+}
+
+
+// ------------------------------------------------------------
+// 3.2 LDR SENSOR (Cahaya)
+// Perintah umum: analogRead
+// Nilai: 0 (gelap) - 1023 (sangat terang) pada Arduino
+//        0 - 4095 pada ESP32
+// >> KONEKSI PIN: ANALOG (membaca tegangan 0-5V)
+//    OUT  -> Pin Analog (contoh: A0)
+//    VCC  -> 3.3V / 5V
+//    GND  -> GND
+//    (Biasanya pakai rangkaian pembagi tegangan dengan resistor 10K)
+// ------------------------------------------------------------
+
+#define PIN_LDR A0  // Hubungkan ke pin ANALOG (A0, A1, A2, dst)
+
+void baca_ldr() {
+    int nilaiCahaya = analogRead(PIN_LDR);
+    Serial.print("Nilai Cahaya: ");
+    Serial.println(nilaiCahaya);
+
+    if (nilaiCahaya < 300) {
+        Serial.println("Kondisi: Gelap");
+    } else {
+        Serial.println("Kondisi: Terang");
+    }
+}
+
+
+// ------------------------------------------------------------
+// 3.3 SENSOR GAS MQ-2 (Gas / Asap)
+// Perintah umum: analogRead (nilai konsentrasi gas)
+//                digitalRead (DO pin - ambang batas)
+// Semakin tinggi nilai analog = gas makin pekat
+// >> KONEKSI PIN: ANALOG + DIGITAL (punya 2 output sekaligus)
+//    AO   -> Pin Analog  (nilai mentah 0-1023)
+//    DO   -> Pin Digital (HIGH/LOW berdasarkan threshold potensio)
+//    VCC  -> 5V
+//    GND  -> GND
+// ------------------------------------------------------------
+
+#define PIN_MQ2_AO A1   // Analog output  -> pin ANALOG
+#define PIN_MQ2_DO 3    // Digital output -> pin DIGITAL
+
+void baca_mq2() {
+    int nilaiGas = analogRead(PIN_MQ2_AO);
+    int statusGas = digitalRead(PIN_MQ2_DO);
+
+    Serial.print("Konsentrasi Gas: ");
+    Serial.println(nilaiGas);
+
+    if (statusGas == LOW) {          // LOW = gas terdeteksi (active low)
+        Serial.println("PERINGATAN: Gas terdeteksi!");
+    }
+}
+
+
+// ------------------------------------------------------------
+// 3.4 SOIL MOISTURE SENSOR (Kelembaban Tanah)
+// Perintah umum: analogRead
+// Nilai: rendah = tanah basah, tinggi = tanah kering
+// (beberapa modul terbalik, tergantung jenis modul)
+// >> KONEKSI PIN: ANALOG (membaca kadar air sebagai tegangan)
+//    AO   -> Pin Analog  (contoh: A2) — nilai detail 0-1023
+//    DO   -> Pin Digital (opsional, threshold lewat potensio)
+//    VCC  -> 3.3V / 5V
+//    GND  -> GND
+// ------------------------------------------------------------
+
+#define PIN_SOIL A2  // Hubungkan ke pin ANALOG
+
+void baca_soil() {
+    int nilaiTanah = analogRead(PIN_SOIL);
+    // Konversi ke persentase (0-100%)
+    int persen = map(nilaiTanah, 0, 1023, 100, 0);
+
+    Serial.print("Kelembaban Tanah: ");
+    Serial.print(persen);
+    Serial.println("%");
+
+    if (persen < 30) {
+        Serial.println("Tanah kering! Perlu disiram.");
+    }
+}
+
+
+// ------------------------------------------------------------
+// 3.5 DHT11 / DHT22 (Suhu & Kelembaban Udara)
+// Library: DHT.h (Adafruit DHT sensor library)
+// Perintah khusus: #define DHTTYPE, objek DHT, dht.begin()
+//                  dht.readTemperature(), dht.readHumidity()
+// DHT11: akurasi rendah | DHT22: akurasi lebih tinggi
+// >> KONEKSI PIN: DIGITAL (komunikasi 1-Wire protokol sendiri)
+//    DATA -> Pin Digital (contoh: D4) — BUKAN analogRead!
+//    VCC  -> 3.3V / 5V
+//    GND  -> GND
+//    (Pasang resistor pull-up 10K antara DATA dan VCC)
+// ------------------------------------------------------------
+
+#include <DHT.h>
+
+#define PIN_DHT    4        // Hubungkan ke pin DIGITAL
+#define DHTTYPE    DHT11    // Ganti DHT22 jika pakai DHT22
+
+DHT dht(PIN_DHT, DHTTYPE);
+
+void setup_dht() {
+    dht.begin();           // Inisialisasi sensor DHT
+}
+
+void baca_dht() {
+    float suhu     = dht.readTemperature();    // Baca suhu (Celsius)
+    float kelembaban = dht.readHumidity();     // Baca kelembaban (%)
+    float suhuF    = dht.readTemperature(true); // Baca suhu dalam Fahrenheit
+
+    // Cek apakah pembacaan valid
+    if (isnan(suhu) || isnan(kelembaban)) {
+        Serial.println("Gagal membaca sensor DHT!");
+        return;
+    }
+
+    Serial.print("Suhu: ");
+    Serial.print(suhu);
+    Serial.println(" °C");
+
+    Serial.print("Kelembaban: ");
+    Serial.print(kelembaban);
+    Serial.println(" %");
+}
+
+
+// ------------------------------------------------------------
+// 3.6 ULTRASONIC HC-SR04 (Jarak)
+// Perintah khusus: pulseIn() untuk mengukur durasi echo
+// Rumus jarak: durasi * 0.034 / 2  (dalam cm)
+// Penjelasan: kecepatan suara 340 m/s = 0.034 cm/µs
+//             dibagi 2 karena perjalanan pulang-pergi
+// >> KONEKSI PIN: DIGITAL (TRIG & ECHO keduanya pin digital)
+//    TRIG -> Pin Digital OUTPUT (contoh: D10) — kirim pulsa
+//    ECHO -> Pin Digital INPUT  (contoh: D11) — terima pantulan
+//    VCC  -> 5V
+//    GND  -> GND
+//    (ECHO output 5V, hati-hati jika ESP32 pakai voltage divider)
+// ------------------------------------------------------------
+
+#define PIN_TRIG 10  // Pin DIGITAL OUTPUT
+#define PIN_ECHO 11  // Pin DIGITAL INPUT
+
+void setup_ultrasonic() {
+    pinMode(PIN_TRIG, OUTPUT);
+    pinMode(PIN_ECHO, INPUT);
+}
+
+float baca_jarak_cm() {
+    // Kirim pulsa trigger (10 mikrosecond)
+    digitalWrite(PIN_TRIG, LOW);
+    delayMicroseconds(2);
+    digitalWrite(PIN_TRIG, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(PIN_TRIG, LOW);
+
+    // Ukur durasi echo (dalam mikrodetik)
+    long durasi = pulseIn(PIN_ECHO, HIGH);
+
+    // Hitung jarak dalam cm
+    float jarak = durasi * 0.034 / 2;
+
+    Serial.print("Jarak: ");
+    Serial.print(jarak);
+    Serial.println(" cm");
+
+    return jarak;
+}
+
+
+// ------------------------------------------------------------
+// 3.7 DS18B20 (Suhu Air / Cairan)
+// Library: OneWire.h + DallasTemperature.h
+// Perintah khusus: sensors.begin(), sensors.requestTemperatures()
+//                  sensors.getTempCByIndex(0)
+// Bisa banyak sensor dalam 1 kabel (One Wire Protocol)
+// >> KONEKSI PIN: DIGITAL (komunikasi protokol 1-Wire)
+//    DATA -> Pin Digital (contoh: D5) — satu kabel untuk semua data
+//    VCC  -> 3.3V / 5V
+//    GND  -> GND
+//    (Wajib pasang resistor pull-up 4.7K antara DATA dan VCC)
+// ------------------------------------------------------------
+
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define PIN_DS18B20 5  // Hubungkan ke pin DIGITAL
+
+OneWire oneWire(PIN_DS18B20);
+DallasTemperature sensors(&oneWire);
+
+void setup_ds18b20() {
+    sensors.begin();               // Inisialisasi sensor
+}
+
+void baca_ds18b20() {
+    sensors.requestTemperatures(); // Perintah baca suhu (wajib dipanggil dulu)
+
+    float suhu = sensors.getTempCByIndex(0); // Ambil suhu sensor ke-0
+
+    if (suhu == DEVICE_DISCONNECTED_C) {
+        Serial.println("Sensor DS18B20 tidak terdeteksi!");
+        return;
+    }
+
+    Serial.print("Suhu Air: ");
+    Serial.print(suhu);
+    Serial.println(" °C");
+}
+
+
+// ------------------------------------------------------------
+// 3.8 MPU6050 (Accelerometer + Gyroscope)
+// Library: Wire.h + MPU6050.h
+// Mengukur percepatan (m/s²) dan rotasi (°/s)
+// >> KONEKSI PIN: I2C (bukan digital biasa, pakai protokol I2C)
+//    SDA  -> Pin SDA (Arduino: A4 | ESP32: GPIO21)
+//    SCL  -> Pin SCL (Arduino: A5 | ESP32: GPIO22)
+//    VCC  -> 3.3V (jangan 5V, bisa rusak!)
+//    GND  -> GND
+//    (I2C bisa disambung banyak perangkat dalam 1 jalur SDA/SCL)
+// ------------------------------------------------------------
+
+#include <Wire.h>
+#include <MPU6050.h>
+
+MPU6050 mpu;
+
+void setup_mpu6050() {
+    Wire.begin();
+    mpu.initialize();
+
+    if (mpu.testConnection()) {
+        Serial.println("MPU6050 terhubung!");
+    } else {
+        Serial.println("MPU6050 gagal terhubung!");
+    }
+}
+
+void baca_mpu6050() {
+    int16_t ax, ay, az;   // Accelerometer
+    int16_t gx, gy, gz;   // Gyroscope
+
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+    Serial.print("Accel X:"); Serial.print(ax);
+    Serial.print(" Y:");      Serial.print(ay);
+    Serial.print(" Z:");      Serial.println(az);
+
+    Serial.print("Gyro  X:"); Serial.print(gx);
+    Serial.print(" Y:");      Serial.print(gy);
+    Serial.print(" Z:");      Serial.println(gz);
+}
+
+
+// ------------------------------------------------------------
+// 3.9 RFID RC522
+// Library: SPI.h + MFRC522.h
+// SS_PIN dan RST_PIN wajib didefinisikan
+// >> KONEKSI PIN: SPI (protokol komunikasi serial 4 kabel)
+//    SDA (SS)  -> Pin Digital (contoh: D10) — Slave Select
+//    SCK       -> Pin SCK SPI (Arduino: D13 | ESP32: GPIO18)
+//    MOSI      -> Pin MOSI    (Arduino: D11 | ESP32: GPIO23)
+//    MISO      -> Pin MISO    (Arduino: D12 | ESP32: GPIO19)
+//    RST       -> Pin Digital (contoh: D9)
+//    VCC       -> 3.3V (JANGAN 5V, modul ini 3.3V!)
+//    GND       -> GND
+// ------------------------------------------------------------
+
+#include <SPI.h>
+#include <MFRC522.h>
+
+#define SS_PIN  10  // Pin DIGITAL (Slave Select)
+#define RST_PIN 9   // Pin DIGITAL (Reset)
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+
+void setup_rfid() {
+    SPI.begin();
+    rfid.PCD_Init();               // Inisialisasi RFID reader
+    Serial.println("Tempelkan kartu RFID...");
+}
+
+void baca_rfid() {
+    // Cek apakah ada kartu baru
+    if (!rfid.PICC_IsNewCardPresent()) return;
+    if (!rfid.PICC_ReadCardSerial())   return;
+
+    Serial.print("UID Kartu: ");
+    for (byte i = 0; i < rfid.uid.size; i++) {
+        Serial.print(rfid.uid.uidByte[i] < 0x10 ? " 0" : " ");
+        Serial.print(rfid.uid.uidByte[i], HEX);
+    }
+    Serial.println();
+
+    rfid.PICC_HaltA();             // Hentikan pembacaan kartu
+}
+
+
+// ------------------------------------------------------------
+// 3.10 KEYPAD 4x4
+// Library: Keypad.h
+// Mendefinisikan baris, kolom, dan peta tombol
+// >> KONEKSI PIN: DIGITAL (scanning matrix, semua pin digital)
+//    8 pin total: 4 pin baris + 4 pin kolom
+//    Semua -> Pin Digital biasa (tidak perlu PWM atau Analog)
+//    Tidak perlu VCC/GND terpisah, tegangan dari pin Arduino
+// ------------------------------------------------------------
+
+#include <Keypad.h>
+
+const byte ROWS = 4;
+const byte COLS = 4;
+
+char hexaKeys[ROWS][COLS] = {
+    {'1','2','3','A'},
+    {'4','5','6','B'},
+    {'7','8','9','C'},
+    {'*','0','#','D'}
+};
+
+byte rowPins[ROWS] = {22, 23, 24, 25}; // Pin baris
+byte colPins[COLS] = {26, 27, 28, 29}; // Pin kolom
+
+Keypad keypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
+
+void baca_keypad() {
+    char tombol = keypad.getKey();   // Ambil tombol yang ditekan
+
+    if (tombol != NO_KEY) {
+        Serial.print("Tombol ditekan: ");
+        Serial.println(tombol);
+    }
+}
+
+
+// ============================================================
+// SECTION 4: CONTOH INTEGRASI (Suhu + LCD + Buzzer)
+// ============================================================
+
+/*
+  Sistem Monitoring Suhu:
+  - DHT11 membaca suhu & kelembaban
+  - LCD menampilkan nilai
+  - Buzzer berbunyi jika suhu > 35°C
+*/
+
+// Library
+#include <DHT.h>
+#include <LiquidCrystal_I2C.h>
+
+// Pin
+#define PIN_DHT2     4
+#define DHTTYPE2     DHT11
+#define PIN_BUZZER2  8
+
+// Objek
+DHT dht2(PIN_DHT2, DHTTYPE2);
+LiquidCrystal_I2C lcd2(0x27, 16, 2);
+
+void setup_integrasi() {
+    dht2.begin();
+    lcd2.init();
+    lcd2.backlight();
+    pinMode(PIN_BUZZER2, OUTPUT);
+}
+
+void loop_integrasi() {
+    float suhu = dht2.readTemperature();
+    float humi = dht2.readHumidity();
+
+    // Tampilkan di LCD
+    lcd2.clear();
+    lcd2.setCursor(0, 0);
+    lcd2.print("Suhu: ");
+    lcd2.print(suhu);
+    lcd2.print(" C");
+
+    lcd2.setCursor(0, 1);
+    lcd2.print("Humi: ");
+    lcd2.print(humi);
+    lcd2.print(" %");
+
+    // Alarm jika suhu terlalu tinggi
+    if (suhu > 35.0) {
+        tone(PIN_BUZZER2, 1000, 500);  // Bunyi 500ms
+    } else {
+        noTone(PIN_BUZZER2);
+    }
+
+    delay(2000); // Baca tiap 2 detik
+}
+
+// ============================================================
+// END OF FILE
+// ============================================================
